@@ -23,3 +23,6 @@
 
 
 ##### 6. Verification Procedure
+
+<img src="pict/4.png">
+<img src="pict/5.png">
