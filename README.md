@@ -12,6 +12,10 @@
 ##### 3. Create ansible inventory file ([inventory](inventory)) with remote host connection details:
 ###### Remote VM hostname/ip/port, Remote ssh login username, Connection type
 
+[all]
+
+vagrantvm ansible_host=192.168.56.60 ansible_port=22 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/default/virtualbox/private_key ansible_connection=ssh
+
 ##### 4. Test ansible connectivity to the VM with ad-hoc command: 
 ###### $ ansible VM-name -i inventory -m setup
 ###### Find out host details: Number of CPUs, Host name, Host IP(s), Total RAM
