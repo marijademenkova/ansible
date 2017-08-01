@@ -1,0 +1,121 @@
+- name: Install tomcat
+  hosts: all
+  become: true
+  become_user: root
+
+  vars: 
+    tomcat_version: '8.5.9'
+    java_version: '1.8.0-openjdk.x86_64'
+
+  tasks:
+  - name: Ensure user tomcat_as exists
+    user:
+      name: tomcat_as
+      state: present
+
+  - name: Ensure group tomcat_as_group exists
+    group: 
+      name: tomcat_as_group
+      state: present
+
+  - name: Ensure directory /opt/tomcat/ exists
+    file:
+      path: /opt/tomcat/
+      state: directory
+      owner: tomcat_as
+      group: tomcat_as_group
+
+  - name: Ensure java installed
+    yum:
+      name: java-{{java_version}}
+      state: present
+
+  - name: Ensure Tomcat downloaded
+    get_url:
+      url: http://archive.apache.org/dist/tomcat/tomcat-8/v{{tomcat_version}}/bin/apache-tomcat-{{tomcat_version}}.tar.gz
+      dest: /tmp/apache-tomcat-{{tomcat_version}}.tar.gz
+
+  - name: Copy tar.gz to target directory 
+    copy:
+      remote_src: True
+      src: /tmp/apache-tomcat-{{tomcat_version}}.tar.gz
+      dest: /opt/tomcat/apache-tomcat-{{tomcat_version}}.tar.gz
+
+  - name: Ensure Tomcat unarchived
+    unarchive:
+      src: /opt/tomcat/apache-tomcat-{{tomcat_version}}.tar.gz
+      dest: /opt/tomcat/
+      remote_src: true
+
+  - name: Ensure correct file ownership, group and mode set
+    file:
+      path: /opt/tomcat/apache-tomcat-{{tomcat_version}}/
+      owner: tomcat_as
+      group: tomcat_as_group
+      recurse: yes
+      mode: u=rwx,g=rwx,o=rwx
+      state: directory
+
+  - name: Set correct directory name
+    shell: mv -n /opt/tomcat/apache-tomcat-{{tomcat_version}} /opt/tomcat/{{tomcat_version}}/
+
+  - name: Create systemd unit file for Tomcat 
+    shell: echo -e 
+     " [Unit]\n
+     Description=Apache Tomcat Web Application Container\n
+     [Service]\n
+     Type=forking\n
+     Environment=AVA_HOME=/usr/lib/jvm/jre-1.8.0\n
+     Environment=CATALINA_PID=/opt/tomcat/{{tomcat_version}}/temp/tomcat.pid
+     Environment=CATALINA_HOME=/opt/tomcat/{{tomcat_version}}\n
+     Environment=CATALINA_BASE=/opt/tomcat/{{tomcat_version}}\n
+     ExecStart=/opt/tomcat/{{tomcat_version}}/bin/startup.sh\n
+     ExecStop=/bin/kill -15 $MAINPID\n
+     User=tomcat_as\n
+     Group=tomcat_as_group\n
+     [Install]\n
+     WantedBy=multi-user.target"
+     >> /etc/systemd/system/tomcat.service
+
+  - name: Ensure service Tomcat started
+    service:
+      name: tomcat
+      enabled: yes
+      state: started
+
+  - name: Check if root page contains `Tomcat` string
+    uri: 
+      url: http://localhost:8080 
+      return_content: yes
+    register: response
+
+  - name: Fail if Tomcat is not in the page content
+    fail:
+    when: "'Tomcat' not in response.content"
+
+  - name: Check if Tomcat is running
+    shell: systemctl status tomcat -l
+    ignore_errors: yes
+    changed_when: false
+    register: service_tomcat_status
+
+  - name: Report status of Tomcat
+    fail:
+      msg: |
+        Service tomcat is not running.
+        Output of `systemctl status tomcat`:
+        {{ service_tomcat_status.stdout }}
+        {{ service_tomcat_status.stderr }}
+    when: service_tomcat_status | failed
+
+  - name: Check with module "shell" curl
+    shell: curl -IS http://localhost:8080 
+  - name: Check with module "shell" listening sport
+    shell: ss -tp state listening sport = :8080 | grep java
+  - name: Check with module "shell" ps
+    shell: ps -ef | grep tomcat
+
+  - name: Delete tar.gz file
+    file: 
+      path: /opt/tomcat/apache-tomcat-{{tomcat_version}}.tar.gz
+      state: absent
