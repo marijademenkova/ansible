@@ -87,6 +87,7 @@
     uri: 
       url: http://localhost:8080 
       return_content: yes
+      timeout: 100
     register: response
 
   - name: Fail if Tomcat is not in the page content
