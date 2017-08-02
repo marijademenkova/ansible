@@ -1,0 +1,12 @@
+---
+# tasks file for java
+- name: Ensure java installed
+   yum:
+    name: java-{{java_version}}
+    state: present
+
+- shell: java -version
+  register: result
+
+- debug:
+    var: result

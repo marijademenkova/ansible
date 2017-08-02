@@ -1,0 +1,27 @@
+---
+# tasks file for nginx
+- name: Install nginx with yum 
+   shell: yum -y install nginx 
+
+- debug: 
+    msg: "Installation competed"
+
+- name: Change nginx.conf
+   template:
+      src: /home/student/cm/ansible/day-2/nginx.conf
+      dest: /etc/nginx/nginx.conf
+      notify:
+         - systemctl daemon-reload
+
+- name: Enable service Nginx and start it
+   service:
+      name: nginx
+      enabled: yes
+      state: started
+
+
+- shell: systemctl status nginx
+  register: result
+
+- debug:
+    var: result
